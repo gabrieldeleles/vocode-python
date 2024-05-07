@@ -49,21 +49,26 @@ config_manager = RedisConfigManager(
 
 BASE_URL = os.getenv("BASE_URL")
 
-# if not BASE_URL:
-#     ngrok_auth = os.environ.get("NGROK_AUTH_TOKEN")
-#     if ngrok_auth is not None:
-#         ngrok.set_auth_token(ngrok_auth)
-#     port = sys.argv[sys.argv.index("--port") + 1] if "--port" in sys.argv else 3000
-
-#     # Open a ngrok tunnel to the dev server
-#     BASE_URL = ngrok.connect(port).public_url.replace("https://", "")
-#     logger.info('ngrok tunnel "{}" -> "http://127.0.0.1:{}"'.format(BASE_URL, port))
-
-# if not BASE_URL:
-#     raise ValueError("BASE_URL must be set in environment if not using pyngrok")
-
 
 class CustomTelephonyServer(TelephonyServer):
+    """
+    CustomTelephonyServer extends the base TelephonyServer to provide enhanced functionality
+    for handling inbound telephony calls. Specifically, it overrides the default behavior to
+    dynamically generate and include a custom initial message for each call based on specific
+    call parameters such as the caller's phone number or a randomly selected color.
+
+    The class achieves this by overriding the `create_inbound_route` method to inject custom
+    logic for generating the initial message dynamically, leveraging additional context available
+    at the time of the call (e.g., caller ID, time of day) to tailor the message accordingly.
+
+    Additionally, this class can be extended to incorporate a form of memory for inbound calls,
+    allowing the system to remember previous interactions with a caller. This capability can be
+    used to further personalize the conversation by referencing past discussions, preferences,
+    or any relevant information shared in earlier calls. Implementing such a memory feature
+    enhances the caller's experience by making the interaction feel more coherent and contextually
+    aware over time, fostering a deeper connection between the caller and the service.
+    """
+
     async def generate_prompt_preamble(
         self, color: Optional[str] = None, twilio_from: Optional[str] = None
     ) -> str:
@@ -102,6 +107,30 @@ class CustomTelephonyServer(TelephonyServer):
             twilio_from: str = Form(alias="From"),
             twilio_to: str = Form(alias="To"),
         ) -> Response:
+            """
+            Custom route handler for Twilio inbound calls within the CustomTelephonyServer class. This method
+            is specifically designed to enhance the caller experience by dynamically generating a unique initial
+            message for each call, leveraging the caller's information and other context-specific details.
+
+            Unlike the base TelephonyServer's static initial message configuration, this implementation allows
+            for a more personalized interaction by incorporating elements such as the time of day and a randomly
+            selected color into the greeting. This dynamic generation of the initial message directly addresses
+            the need for a more engaging and personalized caller experience.
+
+            The method updates the agent configuration with the dynamically generated message before proceeding
+            with the call setup, ensuring that each caller receives a unique and contextually relevant greeting.
+
+            Args:
+                twilio_config (TwilioConfig): Configuration object containing Twilio account details.
+                twilio_sid (str): The unique identifier for the Twilio session (call).
+                twilio_from (str): The phone number of the caller.
+                twilio_to (str): The phone number being called (your Twilio number).
+
+            Returns:
+                Response: A FastAPI Response object containing the TwiML instructions for Twilio to execute,
+                which includes the dynamically generated initial message for the call.
+            """
+
             # Dynamically generate the initial message for each call
             dynamic_initial_message = await self.generate_prompt_preamble(
                 twilio_from=twilio_from
